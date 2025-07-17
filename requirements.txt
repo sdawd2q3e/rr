@@ -1,0 +1,15 @@
+# No external dependencies required!
+# This converter uses only Python standard library
+
+# Python 3.6+ required
+# - json (standard)
+# - zipfile (standard) 
+# - pathlib (standard)
+# - tempfile (standard)
+# - shutil (standard)
+# - uuid (standard)
+# - hashlib (standard)
+# - argparse (standard)
+
+# Optional for enhanced functionality:
+# pillow>=8.0.0  # For texture optimization (not required)
