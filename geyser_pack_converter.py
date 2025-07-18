@@ -248,7 +248,7 @@ class GeyserPackConverter:
         log(f"Found {total_models} custom model data entries across {len(cmd_items)} items", "SUCCESS")
         return cmd_items
         
-    def convert_java_model_to_bedrock(self, model_path: Path, output_name: str, texture_name: str, base_item: str) -> bool:
+    def convert_java_model_to_bedrock(self, model_path: Path, output_name: str, texture_name: str) -> bool:
         """Convert a Java model to Bedrock geometry"""
         try:
             with open(model_path, 'r', encoding='utf-8') as f:
@@ -306,16 +306,10 @@ class GeyserPackConverter:
             # Create render controller
             self.create_render_controller(output_name, texture_name)
             
-            # Create animation if display transforms exist, or create default animation
+            # Create animation if display transforms exist
             if display:
                 self.create_animation(output_name, display)
-            else:
-                # Create a default animation for items without display transforms
-                self.create_default_animation(output_name)
                 
-            # Create attachable (this was missing!)
-            self.create_attachable(output_name, texture_name, base_item)
-            
             return True
             
         except Exception as e:
@@ -431,80 +425,6 @@ class GeyserPackConverter:
         with open(anim_file, 'w', encoding='utf-8') as f:
             json.dump(animation, f, indent=2)
             
-    def create_attachable(self, output_name: str, texture_name: str, base_item: str):
-        """Create attachable file for the custom item"""
-        # Generate a unique identifier for the attachable
-        attachable_id = f"custom:{output_name}"
-        
-        # Create the attachable definition
-        attachable = {
-            "format_version": "1.10.0",
-            "minecraft:attachable": {
-                "description": {
-                    "identifier": attachable_id,
-                    "materials": {
-                        "default": "entity",
-                        "enchanted": "entity_emissive"
-                    },
-                    "textures": {
-                        "default": f"textures/{texture_name}",
-                        "enchanted": f"textures/{texture_name}"
-                    },
-                    "geometry": {
-                        "default": f"geometry.{output_name}"
-                    },
-                    "animations": {
-                        "wield": f"animation.{output_name}"
-                    },
-                    "render_controllers": [
-                        f"controller.render.{output_name}"
-                    ],
-                    "enable_attachables": True
-                },
-                "components": {
-                    "minecraft:render_controllers": {
-                        "default": f"controller.render.{output_name}"
-                    }
-                }
-            }
-        }
-        
-        # Write attachable file
-        attachable_file = self.bedrock_pack_dir / "attachables" / f"{output_name}.attachable.json"
-        with open(attachable_file, 'w', encoding='utf-8') as f:
-            json.dump(attachable, f, indent=2)
-            
-        return attachable_id
-            
-    def create_default_animation(self, output_name: str):
-        """Create a default animation for items without display transforms"""
-        default_animation = {
-            "format_version": "1.8.0",
-            "animations": {
-                f"animation.{output_name}": {
-                    "loop": True,
-                    "bones": {
-                        "thirdperson_righthand": {
-                            "rotation": [0, -90, 25]
-                        },
-                        "thirdperson_lefthand": {
-                            "rotation": [0, 90, -25]
-                        },
-                        "firstperson_righthand": {
-                            "rotation": [0, -90, 25]
-                        },
-                        "firstperson_lefthand": {
-                            "rotation": [0, 90, -25]
-                        }
-                    }
-                }
-            }
-        }
-        
-        anim_file = self.bedrock_pack_dir / "animations" / f"animation.{output_name}.json"
-        with open(anim_file, 'w', encoding='utf-8') as f:
-            json.dump(default_animation, f, indent=2)
-            
     def copy_textures(self):
         """Copy textures from Java to Bedrock format"""
         assets_dir = self.java_pack_dir / "assets"
@@ -557,8 +477,8 @@ class GeyserPackConverter:
                     # Extract texture name
                     texture_name = self.extract_texture_name(model_path, namespace)
                     
-                    # Convert the model (now includes base_item parameter)
-                    success = self.convert_java_model_to_bedrock(model_path, output_name, texture_name, item_name)
+                    # Convert the model
+                    success = self.convert_java_model_to_bedrock(model_path, output_name, texture_name)
                     if success:
                         # Store item data for later use
                         self.items_data.append({
@@ -753,13 +673,9 @@ class GeyserPackConverter:
         # Count files
         texture_count = len(list((self.bedrock_pack_dir / "textures").rglob("*.png")))
         model_count = len(list((self.bedrock_pack_dir / "models" / "entity").glob("*.geo.json")))
-        animation_count = len(list((self.bedrock_pack_dir / "animations").glob("*.json")))
-        attachable_count = len(list((self.bedrock_pack_dir / "attachables").glob("*.json")))
         
         log(f"🖼️  Textures: {texture_count}", "INFO")
         log(f"🎨 Models: {model_count}", "INFO")
-        log(f"🎬 Animations: {animation_count}", "INFO")
-        log(f"📎 Attachables: {attachable_count}", "INFO")
         log(f"⚙️  Custom Items: {len(self.items_data)}", "INFO")
         
         if self.missing_models:

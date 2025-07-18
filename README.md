@@ -56,8 +56,7 @@ converted_packs/
 │   ├── manifest.json           # 📋 Bedrock pack manifest
 │   ├── textures/               # 🖼️ Converted textures (61 files)
 │   ├── models/entity/          # 🎨 Bedrock geometry files (50 models)
-│   ├── animations/             # 🎬 Item animations (50 files)
-│   ├── attachables/            # 📎 Item attachables (50 files) 
+│   ├── animations/             # 🎬 Item animations (27 files)
 │   ├── render_controllers/     # 🎮 Render controllers (50 files)
 │   └── geyser_mappings.json    # ⭐ GeyserMC mappings (100 items)
 └── YourPack_bedrock.mcpack     # 📦 Ready-to-use Bedrock pack (0.6 MB)
@@ -68,7 +67,6 @@ converted_packs/
 - **100 custom variants** with unique CMD values
 - **Complete texture mapping** for all namespaces
 - **Working animations** and render controllers
-- **Full attachable support** for proper item attachment
 
 ## 🔧 GeyserMC Setup
 
@@ -99,8 +97,6 @@ converted_packs/
 - 🚀 **User-friendly interface** with clear progress and helpful summaries
 - ✅ **Smart pack naming** using actual pack names instead of random IDs
 - 🔧 **Input validation** with helpful error messages for troubleshooting
-- 📎 **Complete attachable generation** for proper Bedrock item attachment
-- 🎬 **Smart animation creation** with fallbacks for items without display data
 
 ## 🎮 Compatible With
 
