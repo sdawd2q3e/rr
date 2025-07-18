@@ -58,6 +58,7 @@ class GeyserPackConverter:
         self.bedrock_pack_dir = None
         self.items_data = []
         self.custom_model_data = {}
+        self.missing_models = set()  # Track missing models to avoid spam
         
     def __enter__(self):
         return self
@@ -123,8 +124,17 @@ class GeyserPackConverter:
     def read_pack_info(self) -> Dict[str, Any]:
         """Read pack.mcmeta for pack information"""
         pack_mcmeta = self.java_pack_dir / "pack.mcmeta"
+        
+        # Try to get a meaningful name from the original input
+        if self.input_path.is_file():
+            # Use the ZIP file name without extension
+            base_name = self.input_path.stem
+        else:
+            # Use the directory name
+            base_name = self.input_path.name
+            
         pack_info = {
-            "name": self.java_pack_dir.name,
+            "name": base_name,
             "description": "Converted from Java Edition",
             "format": 6
         }
@@ -134,8 +144,17 @@ class GeyserPackConverter:
                 with open(pack_mcmeta, 'r', encoding='utf-8') as f:
                     data = json.load(f)
                     pack_data = data.get("pack", {})
+                    description = pack_data.get("description", pack_info["description"])
+                    
+                    # If description has a useful name, use it for the pack name
+                    if description and description != "Converted from Java Edition" and len(description) < 50:
+                        # Clean the description to be filename-safe
+                        clean_desc = "".join(c for c in description if c.isalnum() or c in (' ', '-', '_')).strip()
+                        if clean_desc and clean_desc.lower() not in ['converted from java edition', 'resource pack']:
+                            pack_info["name"] = clean_desc
+                    
                     pack_info.update({
-                        "description": pack_data.get("description", pack_info["description"]),
+                        "description": description,
                         "format": pack_data.get("pack_format", pack_info["format"])
                     })
             except Exception as e:
@@ -471,9 +490,13 @@ class GeyserPackConverter:
                         })
                         processed_count += 1
                 else:
-                    log(f"Model file not found: {model_ref}", "WARNING")
+                    self.missing_models.add(model_ref)
                     
         log(f"Processed {processed_count} custom models", "SUCCESS")
+        
+        # Report missing models summary instead of individual warnings
+        if self.missing_models:
+            log(f"Note: {len(self.missing_models)} model files were not found (this is normal for external dependencies)", "WARNING")
         
     def find_model_file(self, model_ref: str) -> Optional[Path]:
         """Find model file from reference"""
@@ -551,10 +574,52 @@ class GeyserPackConverter:
         log(f"Created .mcpack file: {mcpack_path}", "SUCCESS")
         return mcpack_path
         
+    def validate_input(self) -> bool:
+        """Validate that the input is a valid resource pack"""
+        if not self.input_path.exists():
+            log(f"Input path does not exist: {self.input_path}", "ERROR")
+            return False
+            
+        if self.input_path.is_file():
+            if not self.input_path.suffix.lower() == '.zip':
+                log(f"Input file must be a ZIP archive: {self.input_path}", "ERROR")
+                if self.input_path.suffix.lower() == '.rar':
+                    log("RAR files are not supported. Please extract and re-compress as ZIP.", "ERROR")
+                else:
+                    log("Supported formats: .zip", "ERROR")
+                return False
+                
+            # Check if ZIP file is valid
+            try:
+                with zipfile.ZipFile(self.input_path, 'r') as zip_ref:
+                    zip_ref.testzip()
+            except zipfile.BadZipFile:
+                log(f"Invalid ZIP file: {self.input_path}", "ERROR")
+                return False
+            except Exception as e:
+                log(f"Error reading ZIP file: {e}", "ERROR")
+                return False
+                
+        elif self.input_path.is_dir():
+            # Check if directory contains any assets
+            assets_dir = self.input_path / "assets"
+            if not assets_dir.exists():
+                log(f"Directory does not contain 'assets' folder: {self.input_path}", "WARNING")
+                log("This may not be a valid Minecraft resource pack", "WARNING")
+        else:
+            log(f"Input path is neither a file nor directory: {self.input_path}", "ERROR")
+            return False
+            
+        return True
+        
     def convert(self) -> Tuple[Path, Path]:
         """Main conversion process"""
         log("Starting GeyserMC Pack Conversion", "INFO")
         log("=" * 50)
+        
+        # Validate input first
+        if not self.validate_input():
+            raise ValueError(f"Invalid input: {self.input_path}")
         
         # Extract/prepare Java pack
         java_dir = self.extract_java_pack()
@@ -589,10 +654,39 @@ class GeyserPackConverter:
         # Create .mcpack
         mcpack_path = self.create_mcpack(pack_info["name"])
         
+        # Show helpful summary
+        self.show_conversion_summary(pack_info, mcpack_path)
+        
         log("=" * 50)
         log("Conversion completed successfully!", "SUCCESS")
         
         return bedrock_dir, mcpack_path
+        
+    def show_conversion_summary(self, pack_info: Dict[str, Any], mcpack_path: Path):
+        """Show a helpful summary of what was converted"""
+        log("", "INFO")  # Empty line
+        log(f"{Colors.GREEN}{Colors.BOLD}✅ Conversion Summary{Colors.END}", "INFO")
+        log(f"📦 Pack: {pack_info['name']}", "INFO")
+        log(f"📁 Output: {self.bedrock_pack_dir}", "INFO")
+        log(f"📱 Bedrock Pack: {mcpack_path.name}", "INFO")
+        
+        # Count files
+        texture_count = len(list((self.bedrock_pack_dir / "textures").rglob("*.png")))
+        model_count = len(list((self.bedrock_pack_dir / "models" / "entity").glob("*.geo.json")))
+        
+        log(f"🖼️  Textures: {texture_count}", "INFO")
+        log(f"🎨 Models: {model_count}", "INFO")
+        log(f"⚙️  Custom Items: {len(self.items_data)}", "INFO")
+        
+        if self.missing_models:
+            log(f"⚠️  Missing models: {len(self.missing_models)} (external dependencies)", "INFO")
+        
+        log("", "INFO")  # Empty line
+        log(f"{Colors.CYAN}{Colors.BOLD}📋 Next Steps:{Colors.END}", "INFO")
+        log(f"1. 📱 Install {mcpack_path.name} on Bedrock clients", "INFO")
+        log(f"2. 🔧 Copy geyser_mappings.json to your Geyser server", "INFO")
+        log(f"3. 🔄 Restart your server", "INFO")
+        log(f"4. 🎉 Enjoy cross-platform resource packs!", "INFO")
 
 def main():
     """Main CLI function"""
@@ -659,8 +753,20 @@ Examples:
     except KeyboardInterrupt:
         log("\nConversion cancelled by user", "WARNING")
         return 1
+    except ValueError as e:
+        log(f"Invalid input: {e}", "ERROR")
+        log("Please check that your input is a valid Minecraft resource pack", "ERROR")
+        return 1
+    except FileNotFoundError as e:
+        log(f"File not found: {e}", "ERROR")
+        return 1
+    except PermissionError as e:
+        log(f"Permission denied: {e}", "ERROR")
+        log("Please check file permissions and try again", "ERROR")
+        return 1
     except Exception as e:
         log(f"Conversion failed: {e}", "ERROR")
+        log("If this persists, please check the input pack format", "ERROR")
         return 1
 
 if __name__ == "__main__":
