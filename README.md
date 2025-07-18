@@ -94,6 +94,9 @@ converted_packs/
 - 📦 **Creates ready-to-use .mcpack files**
 - 🔄 **Handles ItemsAdder packs** and other custom item plugins
 - 🌍 **Multi-namespace support** for complex resource packs
+- 🚀 **User-friendly interface** with clear progress and helpful summaries
+- ✅ **Smart pack naming** using actual pack names instead of random IDs
+- 🔧 **Input validation** with helpful error messages for troubleshooting
 
 ## 🎮 Compatible With
 
@@ -110,13 +113,19 @@ converted_packs/
 
 ## 🐛 Troubleshooting
 
+### "Invalid input" or "Invalid ZIP file"
+- Ensure your input file is a valid ZIP archive
+- RAR files are not supported - extract and re-compress as ZIP
+- Verify the file isn't corrupted
+
 ### "No custom model data found"
 - Make sure your Java pack contains items with `overrides` and `custom_model_data`
 - Check that the pack structure includes `assets/*/models/item/*.json`
 
-### "Model file not found"
-- Ensure all referenced models exist in the pack
-- Check for correct namespace formatting in model references
+### "Missing models: X (external dependencies)"
+- This is normal! These are references to models from other packs or plugins
+- The converter successfully processes available models and notes missing ones
+- Your converted pack will still work for items that have complete model data
 
 ### Bedrock players can't see custom items
 - Verify the `geyser_mappings.json` is in the correct Geyser folder
